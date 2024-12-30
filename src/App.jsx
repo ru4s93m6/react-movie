@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useRef, useState } from "react";
+import { debounce } from "loadsh";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StarRating from "./StarRating";
 
 const tempMovieData = [
@@ -173,6 +174,17 @@ function Logo() {
 
 function SearchBar({ query, setQuery }) {
   const inputEl = useRef(null);
+  const [localQuery, setLocalQuery] = useState(query);
+
+  // Memoize the debounced function to maintain a stable reference
+  // This prevents recreating the debounce timer on every render
+  const debouncedSetQuery = useMemo(
+    () =>
+      debounce((value) => {
+        setQuery(value);
+      }, 500),
+    [setQuery]
+  );
 
   useEffect(
     function () {
@@ -186,18 +198,28 @@ function SearchBar({ query, setQuery }) {
       }
       document.addEventListener("keydown", callback);
 
-      return document.addEventListener("keydown", callback);
+      return () => {
+        document.addEventListener("keydown", callback);
+        debouncedSetQuery.cancel();
+      };
     },
-    [setQuery]
+    [setQuery, debouncedSetQuery]
   );
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setLocalQuery(value); // immediately update searchbar
+
+    debouncedSetQuery(value); // delay the search functionality
+  };
 
   return (
     <input
       className="search"
       type="text"
       placeholder="Search movies..."
-      value={query}
-      onChange={(e) => setQuery(e.target.value)}
+      value={localQuery}
+      onChange={handleChange}
       ref={inputEl}
     />
   );
